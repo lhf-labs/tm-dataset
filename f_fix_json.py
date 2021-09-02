@@ -2,7 +2,7 @@ import os
 import json
 from PIL import Image
 
-PATH = '../output/images'
+PATH = '../output/'
 if __name__ == '__main__':
     results = list()
     for element in os.listdir(PATH):
@@ -16,7 +16,7 @@ if __name__ == '__main__':
         if not isinstance(result['vienna_codes'], list):
             result['vienna_codes'] = [result['vienna_codes']]
         result['file'] = result['file'].replace('.TIFF', '.JPG')
-        file = os.path.join(PATH, result['file'])
+        file = os.path.join(PATH, 'images', result['file'])
 
         if os.path.isfile(file):
             try:
