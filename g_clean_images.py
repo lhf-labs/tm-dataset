@@ -9,7 +9,7 @@ if __name__ == '__main__':
 
     files = set(os.listdir(PATH))
     data = set(map(lambda x: x['file'], data))
-    to_remove = data.difference(files)
+    to_remove = list(data.difference(files))
     for rm in to_remove:
         os.remove(os.path.join(PATH, rm))
 
