@@ -2,7 +2,7 @@ import os
 import json
 from PIL import Image
 
-PATH = ''
+PATH = '../output/images'
 if __name__ == '__main__':
     results = list()
     for element in os.listdir(PATH):
