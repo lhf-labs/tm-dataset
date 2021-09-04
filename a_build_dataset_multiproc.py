@@ -7,8 +7,8 @@ from uuid import uuid4
 from multiprocessing import Pool
 from itertools import chain
 
-PATH = '../Diff/'
-OUTPUT_PATH = '../output_diff'
+PATH = '../Full/'
+OUTPUT_PATH = '../output'
 OUTPUT_SUB_PATH = 'images'
 
 
