@@ -16,11 +16,12 @@ if __name__ == '__main__':
         if not isinstance(result['vienna_codes'], list):
             result['vienna_codes'] = [result['vienna_codes']]
         result['file'] = result['file'].replace('.TIFF', '.JPG')
+        result['file'] = result['file'].replace('.TIF', '.JPG')
         file = os.path.join(PATH, 'images', result['file'])
 
         if os.path.isfile(file):
             try:
-                width, height = Image.open(file).size
+                Image.open(file).verify()
                 results_keep.append(result)
             except:
                 pass
