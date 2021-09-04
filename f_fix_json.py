@@ -22,10 +22,14 @@ if __name__ == '__main__':
 
         if os.path.isfile(file):
             try:
-                Image.open(file).verify()
-                results_keep.append(result)
+                img = Image.open(file)
+                img.verify()
+                width, height = img.size
+                if width == 800 and height == 800:
+                    results_keep.append(result)
             except:
                 pass
 
+    print(len(results_keep), "results")
     with open(os.path.join(PATH, 'results.json'), 'w', encoding='utf-8') as fout:
         json.dump(results_keep, fout)
