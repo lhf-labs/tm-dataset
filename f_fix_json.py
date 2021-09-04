@@ -1,5 +1,6 @@
 import os
 import json
+from tqdm import tqdm
 from PIL import Image
 
 PATH = '../output/'
@@ -12,7 +13,7 @@ if __name__ == '__main__':
                 results.extend(json.load(fin))
 
     results_keep = list()
-    for idx, result in enumerate(results):
+    for idx, result in tqdm(enumerate(results)):
         if not isinstance(result['vienna_codes'], list):
             result['vienna_codes'] = [result['vienna_codes']]
         result['file'] = result['file'].replace('.TIFF', '.JPG')
