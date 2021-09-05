@@ -16,19 +16,18 @@ class DataGenerator(tf.keras.utils.Sequence):
 
     def __getitem__(self, index):
         # select
-        items = self.data[index * self.batch_size, index * self.batch_size + self.batch_size]
+        items = self.data[index * self.batch_size:index * self.batch_size + self.batch_size]
 
         # images
         images = [
-            tf.keras.preprocessing.image.img_to_array(tf.keras.utils.load_img(os.path.join(self.path, item['file'])))
+            tf.keras.preprocessing.image.img_to_array(tf.keras.preprocessing.image.load_img(os.path.join(self.path, item['file'])))
             for item in items]
         images = np.stack(images)
 
         # labels
         labels = list()
         for item in items:
-            label = np.zeros(len(self.labels))
-            label[np.searchsorted(self.labels, item['vienna_codes'])] = 1.0
+            label = np.isin(self.labels, item['vienna_codes']).astype(float)
             labels.append(label)
         labels = np.stack(labels)
 
