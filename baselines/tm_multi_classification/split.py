@@ -8,11 +8,11 @@ def split(data, ratio=0.02):
 
     valid_indices = np.random.choice(indices, valid_test_n)
     valid_data = data[valid_indices]
-    indices = np.delete(indices, valid_indices)
+    indices = indices[~np.isin(indices, valid_indices)]
 
     test_indices = np.random.choice(indices, valid_test_n)
     test_data = data[test_indices]
-    indices = np.delete(indices, test_indices)
+    indices = indices[~np.isin(indices, test_indices)]
 
     train_data = data[indices]
     return train_data, valid_data, test_data
