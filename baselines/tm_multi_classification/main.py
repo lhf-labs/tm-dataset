@@ -22,7 +22,7 @@ if __name__ == '__main__':
 
     train_data, valid_data, test_data = split(data)
 
-    model = load_network()
+    model = load_network(labels)
     model.compile(loss='categorical_crossentropy', optimizer='adam', metrics=['accuracy'])
 
     train_generator = DataGenerator(train_data, labels, os.path.join(PATH, 'images'), num_classes=len(labels),
