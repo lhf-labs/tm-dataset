@@ -20,7 +20,8 @@ class DataGenerator(tf.keras.utils.Sequence):
 
         # images
         images = [
-            tf.keras.preprocessing.image.img_to_array(tf.keras.preprocessing.image.load_img(os.path.join(self.path, item['file'])))
+            tf.keras.preprocessing.image.img_to_array(
+                tf.keras.preprocessing.image.load_img(os.path.join(self.path, item['file']), target_size=(331, 331)))
             for item in items]
         images = np.stack(images)
 

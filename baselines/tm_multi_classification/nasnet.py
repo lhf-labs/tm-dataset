@@ -3,9 +3,9 @@ import tensorflow as tf
 
 def load_network(labels):
     cnn = tf.keras.applications.NASNetLarge(
-            input_shape=(800, 800, 3),
+            input_shape=(331, 331, 3),
             include_top=False,
-            weights=None,
+            weights='imagenet',
             pooling='avg'
     )
 
@@ -13,4 +13,10 @@ def load_network(labels):
     fcn = tf.keras.layers.Dense(2048, activation='relu')(flatten)
     fcn_classification = tf.keras.layers.Dense(len(labels), activation='sigmoid')(fcn)
     model = tf.keras.Model(inputs=cnn.inputs, outputs=fcn_classification)
+
+    for layer in model.layers[:20]:
+        layer.trainable = False
+    for layer in model.layers[20:]:
+        layer.trainable = True
+
     return model
