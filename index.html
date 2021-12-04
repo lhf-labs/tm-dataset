@@ -84,7 +84,7 @@
 
         <div class="row">
           <h3>Labelling</h3>
-          <!-- https://observablehq.com/@d3/sunburst -->
+            <div id="sunburst"></div>
         </div>
 
     </div>
@@ -99,6 +99,140 @@
 <script src="https://stackpath.bootstrapcdn.com/bootstrap/3.4.1/js/bootstrap.min.js"
         integrity="sha384-aJ21OjlMXNL5UyIl/XNwTMqvzeRMZH2w8c5cRVpzpU8Y5bApTppSuUkhZXN0VxHd"
         crossorigin="anonymous"></script>
+
+<script src="https://d3js.org/d3.v7.min.js"></script>
+
+<script>
+    // Copyright 2021 Observable, Inc.
+// Released under the ISC license.
+// https://observablehq.com/@d3/sunburst
+function Sunburst(data, { // data is either tabular (array of objects) or hierarchy (nested objects)
+  path, // as an alternative to id and parentId, returns an array identifier, imputing internal nodes
+  id = Array.isArray(data) ? d => d.id : null, // if tabular data, given a d in data, returns a unique identifier (string)
+  parentId = Array.isArray(data) ? d => d.parentId : null, // if tabular data, given a node d, returns its parent’s identifier
+  children, // if hierarchical data, given a d in data, returns its children
+  value, // given a node d, returns a quantitative value (for area encoding; null for count)
+  sort = (a, b) => d3.descending(a.value, b.value), // how to sort nodes prior to layout
+  label, // given a node d, returns the name to display on the rectangle
+  title, // given a node d, returns its hover text
+  link, // given a node d, its link (if any)
+  linkTarget = "_blank", // the target attribute for links (if any)
+  width = 640, // outer width, in pixels
+  height = 400, // outer height, in pixels
+  margin = 1, // shorthand for margins
+  marginTop = margin, // top margin, in pixels
+  marginRight = margin, // right margin, in pixels
+  marginBottom = margin, // bottom margin, in pixels
+  marginLeft = margin, // left margin, in pixels
+  padding = 1, // separation between arcs
+  radius = Math.min(width - marginLeft - marginRight, height - marginTop - marginBottom) / 2, // outer radius
+  color = d3.interpolateRainbow, // color scheme, if any
+  fill = "#ccc", // fill for arcs (if no color encoding)
+  fillOpacity = 0.6, // fill opacity for arcs
+} = {}) {
+
+  // If a path accessor is specified, we can impute the internal nodes from the slash-
+  // separated path; otherwise, the tabular data must include the internal nodes, not
+  // just leaves. TODO https://github.com/d3/d3-hierarchy/issues/33
+  if (path != null) {
+    const D = d3.map(data, d => d);
+    const I = d3.map(data, path).map(d => (d = `${d}`).startsWith("/") ? d : `/${d}`);
+    const paths = new Set(I);
+    for (const path of paths) {
+      const parts = path.split("/");
+      while (parts.pop(), parts.length) {
+        const path = parts.join("/") || "/";
+        if (paths.has(path)) continue;
+        paths.add(path), I.push(path), D.push(null);
+      }
+    }
+    id = (_, i) => I[i];
+    parentId = (_, i) => I[i] === "/" ? "" : I[i].slice(0, I[i].lastIndexOf("/")) || "/";
+    data = D;
+  }
+
+  // If id and parentId options are specified (perhaps implicitly via the path option),
+  // use d3.stratify to convert tabular data to a hierarchy; otherwise we assume that
+  // the data is specified as an object {children} with nested objects (a.k.a. the
+  // “flare.json” format), and use d3.hierarchy.
+  const root = id == null && parentId == null
+      ? d3.hierarchy(data, children)
+      : d3.stratify().id(id).parentId(parentId)(data);
+
+  // Compute the values of internal nodes by aggregating from the leaves.
+  value == null ? root.count() : root.sum(value);
+
+  // Sort the leaves (typically by descending value for a pleasing layout).
+  if (sort != null) root.sort(sort);
+
+  // Compute the partition layout. Note polar coordinates: x is angle and y is radius.
+  d3.partition().size([2 * Math.PI, radius])(root);
+
+  // Construct a color scale.
+  if (color != null) {
+    color = d3.scaleSequential([0, root.children.length - 1], color).unknown(fill);
+    root.children.forEach((child, i) => child.index = i);
+  }
+
+  // Construct an arc generator.
+  const arc = d3.arc()
+      .startAngle(d => d.x0)
+      .endAngle(d => d.x1)
+      .padAngle(d => Math.min((d.x1 - d.x0) / 2, 2 * padding / radius))
+      .padRadius(radius / 2)
+      .innerRadius(d => d.y0)
+      .outerRadius(d => d.y1 - padding);
+
+  const svg = d3.create("svg")
+      .attr("viewBox", [-marginLeft - radius, -marginTop - radius, width, height])
+      .attr("width", width)
+      .attr("height", height)
+      .attr("style", "max-width: 100%; height: auto; height: intrinsic;")
+      .attr("font-family", "sans-serif")
+      .attr("font-size", 10)
+      .attr("text-anchor", "middle");
+
+  const cell = svg
+    .selectAll("a")
+    .data(root.descendants())
+    .join("a")
+      .attr("xlink:href", link == null ? null : d => link(d.data, d))
+      .attr("target", link == null ? null : linkTarget);
+
+  cell.append("path")
+      .attr("d", arc)
+      .attr("fill", color ? d => color(d.ancestors().reverse()[1]?.index) : fill)
+      .attr("fill-opacity", fillOpacity);
+
+  if (label != null) cell
+    .filter(d => (d.y0 + d.y1) / 2 * (d.x1 - d.x0) > 10)
+    .append("text")
+      .attr("transform", d => {
+        if (!d.depth) return;
+        const x = (d.x0 + d.x1) / 2 * 180 / Math.PI;
+        const y = (d.y0 + d.y1) / 2;
+        return `rotate(${x - 90}) translate(${y},0) rotate(${x < 180 ? 0 : 180})`;
+      })
+      .attr("dy", "0.32em")
+      .text(d => label(d.data, d));
+
+  if (title != null) cell.append("title")
+      .text(d => title(d.data, d));
+
+  return svg.node();
+}
+</script>
+<script>
+    data = {"id": "all", "name": "all", "children": [{"id": "01", "name": "01(111759)", "value": 111759, "children": [{"id": "01.01", "name": "01.01(35930)", "value": 35930, "children": []}, {"id": "01.03", "name": "01.03(12825)", "value": 12825, "children": []}, {"id": "01.05", "name": "01.05(13821)", "value": 13821, "children": []}, {"id": "01.07", "name": "01.07(2500)", "value": 2500, "children": []}, {"id": "01.11", "name": "01.11(2340)", "value": 2340, "children": []}, {"id": "01.13", "name": "01.13(5028)", "value": 5028, "children": []}, {"id": "01.15", "name": "01.15(37214)", "value": 37214, "children": []}, {"id": "01.17", "name": "01.17(2101)", "value": 2101, "children": []}]}, {"id": "02", "name": "02(94549)", "value": 94549, "children": [{"id": "02.01", "name": "02.01(46018)", "value": 46018, "children": []}, {"id": "02.03", "name": "02.03(11835)", "value": 11835, "children": []}, {"id": "02.05", "name": "02.05(6588)", "value": 6588, "children": []}, {"id": "02.07", "name": "02.07(4356)", "value": 4356, "children": []}, {"id": "02.09", "name": "02.09(25752)", "value": 25752, "children": []}]}, {"id": "03", "name": "03(111633)", "value": 111633, "children": [{"id": "03.01", "name": "03.01(27634)", "value": 27634, "children": []}, {"id": "03.02", "name": "03.02(3996)", "value": 3996, "children": []}, {"id": "03.03", "name": "03.03(5469)", "value": 5469, "children": []}, {"id": "03.04", "name": "03.04(12535)", "value": 12535, "children": []}, {"id": "03.05", "name": "03.05(6270)", "value": 6270, "children": []}, {"id": "03.06", "name": "03.06(2470)", "value": 2470, "children": []}, {"id": "03.07", "name": "03.07(30387)", "value": 30387, "children": []}, {"id": "03.09", "name": "03.09(8904)", "value": 8904, "children": []}, {"id": "03.11", "name": "03.11(4651)", "value": 4651, "children": []}, {"id": "03.13", "name": "03.13(8374)", "value": 8374, "children": []}, {"id": "03.15", "name": "03.15(279)", "value": 279, "children": []}, {"id": "03.17", "name": "03.17(664)", "value": 664, "children": []}]}, {"id": "04", "name": "04(13831)", "value": 13831, "children": [{"id": "04.01", "name": "04.01(1556)", "value": 1556, "children": []}, {"id": "04.02", "name": "04.02(610)", "value": 610, "children": []}, {"id": "04.03", "name": "04.03(3256)", "value": 3256, "children": []}, {"id": "04.05", "name": "04.05(8402)", "value": 8402, "children": []}, {"id": "04.07", "name": "04.07(7)", "value": 7, "children": []}]}, {"id": "05", "name": "05(127075)", "value": 127075, "children": [{"id": "05.01", "name": "05.01(16065)", "value": 16065, "children": []}, {"id": "05.03", "name": "05.03(49291)", "value": 49291, "children": []}, {"id": "05.05", "name": "05.05(32414)", "value": 32414, "children": []}, {"id": "05.07", "name": "05.07(17987)", "value": 17987, "children": []}, {"id": "05.09", "name": "05.09(3651)", "value": 3651, "children": []}, {"id": "05.11", "name": "05.11(3068)", "value": 3068, "children": []}, {"id": "05.13", "name": "05.13(4599)", "value": 4599, "children": []}]}, {"id": "06", "name": "06(12674)", "value": 12674, "children": [{"id": "06.01", "name": "06.01(5068)", "value": 5068, "children": []}, {"id": "06.03", "name": "06.03(1572)", "value": 1572, "children": []}, {"id": "06.06", "name": "06.06(335)", "value": 335, "children": []}, {"id": "06.07", "name": "06.07(1518)", "value": 1518, "children": []}, {"id": "06.19", "name": "06.19(4181)", "value": 4181, "children": []}]}, {"id": "07", "name": "07(24872)", "value": 24872, "children": [{"id": "07.01", "name": "07.01(14675)", "value": 14675, "children": []}, {"id": "07.03", "name": "07.03(2666)", "value": 2666, "children": []}, {"id": "07.05", "name": "07.05(3407)", "value": 3407, "children": []}, {"id": "07.11", "name": "07.11(1790)", "value": 1790, "children": []}, {"id": "07.15", "name": "07.15(2334)", "value": 2334, "children": []}]}, {"id": "08", "name": "08(9622)", "value": 9622, "children": [{"id": "08.01", "name": "08.01(4230)", "value": 4230, "children": []}, {"id": "08.03", "name": "08.03(828)", "value": 828, "children": []}, {"id": "08.05", "name": "08.05(627)", "value": 627, "children": []}, {"id": "08.07", "name": "08.07(3937)", "value": 3937, "children": []}]}, {"id": "09", "name": "09(11206)", "value": 11206, "children": [{"id": "09.01", "name": "09.01(4456)", "value": 4456, "children": []}, {"id": "09.03", "name": "09.03(2011)", "value": 2011, "children": []}, {"id": "09.05", "name": "09.05(891)", "value": 891, "children": []}, {"id": "09.07", "name": "09.07(2640)", "value": 2640, "children": []}, {"id": "09.09", "name": "09.09(1208)", "value": 1208, "children": []}]}, {"id": "10", "name": "10(3443)", "value": 3443, "children": [{"id": "10.01", "name": "10.01(615)", "value": 615, "children": []}, {"id": "10.03", "name": "10.03(1935)", "value": 1935, "children": []}, {"id": "10.05", "name": "10.05(893)", "value": 893, "children": []}]}, {"id": "11", "name": "11(9673)", "value": 9673, "children": [{"id": "11.01", "name": "11.01(3359)", "value": 3359, "children": []}, {"id": "11.03", "name": "11.03(5976)", "value": 5976, "children": []}, {"id": "11.07", "name": "11.07(338)", "value": 338, "children": []}]}, {"id": "12", "name": "12(1714)", "value": 1714, "children": [{"id": "12.01", "name": "12.01(1403)", "value": 1403, "children": []}, {"id": "12.03", "name": "12.03(311)", "value": 311, "children": []}]}, {"id": "13", "name": "13(2784)", "value": 2784, "children": [{"id": "13.01", "name": "13.01(2133)", "value": 2133, "children": []}, {"id": "13.03", "name": "13.03(651)", "value": 651, "children": []}]}, {"id": "14", "name": "14(9152)", "value": 9152, "children": [{"id": "14.01", "name": "14.01(2226)", "value": 2226, "children": []}, {"id": "14.03", "name": "14.03(2533)", "value": 2533, "children": []}, {"id": "14.05", "name": "14.05(1822)", "value": 1822, "children": []}, {"id": "14.07", "name": "14.07(2180)", "value": 2180, "children": []}, {"id": "14.09", "name": "14.09(259)", "value": 259, "children": []}, {"id": "14.11", "name": "14.11(132)", "value": 132, "children": []}]}, {"id": "15", "name": "15(11790)", "value": 11790, "children": [{"id": "15.01", "name": "15.01(4639)", "value": 4639, "children": []}, {"id": "15.03", "name": "15.03(161)", "value": 161, "children": []}, {"id": "15.05", "name": "15.05(34)", "value": 34, "children": []}, {"id": "15.07", "name": "15.07(4177)", "value": 4177, "children": []}, {"id": "15.09", "name": "15.09(2779)", "value": 2779, "children": []}]}, {"id": "16", "name": "16(7555)", "value": 7555, "children": [{"id": "16.01", "name": "16.01(4530)", "value": 4530, "children": []}, {"id": "16.03", "name": "16.03(3025)", "value": 3025, "children": []}]}, {"id": "17", "name": "17(6622)", "value": 6622, "children": [{"id": "17.01", "name": "17.01(1909)", "value": 1909, "children": []}, {"id": "17.02", "name": "17.02(2734)", "value": 2734, "children": []}, {"id": "17.03", "name": "17.03(377)", "value": 377, "children": []}, {"id": "17.05", "name": "17.05(1602)", "value": 1602, "children": []}]}, {"id": "18", "name": "18(18562)", "value": 18562, "children": [{"id": "18.01", "name": "18.01(8292)", "value": 8292, "children": []}, {"id": "18.02", "name": "18.02(590)", "value": 590, "children": []}, {"id": "18.03", "name": "18.03(4327)", "value": 4327, "children": []}, {"id": "18.04", "name": "18.04(846)", "value": 846, "children": []}, {"id": "18.05", "name": "18.05(3789)", "value": 3789, "children": []}, {"id": "18.07", "name": "18.07(718)", "value": 718, "children": []}]}, {"id": "19", "name": "19(20903)", "value": 20903, "children": [{"id": "19.01", "name": "19.01(1888)", "value": 1888, "children": []}, {"id": "19.03", "name": "19.03(5945)", "value": 5945, "children": []}, {"id": "19.07", "name": "19.07(7878)", "value": 7878, "children": []}, {"id": "19.08", "name": "19.08(359)", "value": 359, "children": []}, {"id": "19.09", "name": "19.09(465)", "value": 465, "children": []}, {"id": "19.10", "name": "19.10(36)", "value": 36, "children": []}, {"id": "19.11", "name": "19.11(867)", "value": 867, "children": []}, {"id": "19.13", "name": "19.13(2053)", "value": 2053, "children": []}, {"id": "19.19", "name": "19.19(1412)", "value": 1412, "children": []}]}, {"id": "20", "name": "20(9698)", "value": 9698, "children": [{"id": "20.01", "name": "20.01(1330)", "value": 1330, "children": []}, {"id": "20.05", "name": "20.05(7008)", "value": 7008, "children": []}, {"id": "20.07", "name": "20.07(1360)", "value": 1360, "children": []}]}, {"id": "21", "name": "21(9856)", "value": 9856, "children": [{"id": "21.01", "name": "21.01(3823)", "value": 3823, "children": []}, {"id": "21.03", "name": "21.03(6033)", "value": 6033, "children": []}]}, {"id": "22", "name": "22(2562)", "value": 2562, "children": [{"id": "22.01", "name": "22.01(1228)", "value": 1228, "children": []}, {"id": "22.03", "name": "22.03(292)", "value": 292, "children": []}, {"id": "22.05", "name": "22.05(1042)", "value": 1042, "children": []}]}, {"id": "23", "name": "23(3245)", "value": 3245, "children": [{"id": "23.01", "name": "23.01(1581)", "value": 1581, "children": []}, {"id": "23.03", "name": "23.03(570)", "value": 570, "children": []}, {"id": "23.05", "name": "23.05(1094)", "value": 1094, "children": []}]}, {"id": "24", "name": "24(150752)", "value": 150752, "children": [{"id": "24.01", "name": "24.01(22931)", "value": 22931, "children": []}, {"id": "24.03", "name": "24.03(18969)", "value": 18969, "children": []}, {"id": "24.05", "name": "24.05(2143)", "value": 2143, "children": []}, {"id": "24.07", "name": "24.07(8811)", "value": 8811, "children": []}, {"id": "24.09", "name": "24.09(19476)", "value": 19476, "children": []}, {"id": "24.11", "name": "24.11(1561)", "value": 1561, "children": []}, {"id": "24.13", "name": "24.13(11539)", "value": 11539, "children": []}, {"id": "24.15", "name": "24.15(28299)", "value": 28299, "children": []}, {"id": "24.17", "name": "24.17(37023)", "value": 37023, "children": []}]}, {"id": "25", "name": "25(148633)", "value": 148633, "children": [{"id": "25.01", "name": "25.01(33809)", "value": 33809, "children": []}, {"id": "25.03", "name": "25.03(11606)", "value": 11606, "children": []}, {"id": "25.05", "name": "25.05(71982)", "value": 71982, "children": []}, {"id": "25.07", "name": "25.07(23896)", "value": 23896, "children": []}, {"id": "25.12", "name": "25.12(7340)", "value": 7340, "children": []}]}, {"id": "26", "name": "26(812208)", "value": 812208, "children": [{"id": "26.01", "name": "26.01(117817)", "value": 117817, "children": []}, {"id": "26.02", "name": "26.02(5725)", "value": 5725, "children": []}, {"id": "26.03", "name": "26.03(41620)", "value": 41620, "children": []}, {"id": "26.04", "name": "26.04(350539)", "value": 350539, "children": []}, {"id": "26.05", "name": "26.05(18826)", "value": 18826, "children": []}, {"id": "26.07", "name": "26.07(26348)", "value": 26348, "children": []}, {"id": "26.11", "name": "26.11(174888)", "value": 174888, "children": []}, {"id": "26.13", "name": "26.13(16462)", "value": 16462, "children": []}, {"id": "26.15", "name": "26.15(16842)", "value": 16842, "children": []}, {"id": "26.99", "name": "26.99(43141)", "value": 43141, "children": []}]}, {"id": "27", "name": "27(446063)", "value": 446063, "children": [{"id": "27.01", "name": "27.01(23086)", "value": 23086, "children": []}, {"id": "27.03", "name": "27.03(37461)", "value": 37461, "children": []}, {"id": "27.05", "name": "27.05(230531)", "value": 230531, "children": []}, {"id": "27.07", "name": "27.07(5891)", "value": 5891, "children": []}, {"id": "27.99", "name": "27.99(149094)", "value": 149094, "children": []}]}, {"id": "28", "name": "28(14658)", "value": 14658, "children": [{"id": "28.01", "name": "28.01(2556)", "value": 2556, "children": []}, {"id": "28.03", "name": "28.03(8899)", "value": 8899, "children": []}, {"id": "28.05", "name": "28.05(777)", "value": 777, "children": []}, {"id": "28.07", "name": "28.07(1902)", "value": 1902, "children": []}, {"id": "28.09", "name": "28.09(71)", "value": 71, "children": []}, {"id": "28.19", "name": "28.19(453)", "value": 453, "children": []}]}, {"id": "29", "name": "29(242361)", "value": 242361, "children": [{"id": "29.01", "name": "29.01(242361)", "value": 242361, "children": []}]}, {"id": "98", "name": "98(4721)", "value": 4721, "children": [{"id": "98.01", "name": "98.01(4)", "value": 4, "children": []}, {"id": "98.02", "name": "98.02(185)", "value": 185, "children": []}, {"id": "98.03", "name": "98.03(252)", "value": 252, "children": []}, {"id": "98.04", "name": "98.04(3974)", "value": 3974, "children": []}, {"id": "98.05", "name": "98.05(5)", "value": 5, "children": []}, {"id": "98.06", "name": "98.06(7)", "value": 7, "children": []}, {"id": "98.07", "name": "98.07(1)", "value": 1, "children": []}, {"id": "98.08", "name": "98.08(34)", "value": 34, "children": []}, {"id": "98.09", "name": "98.09(182)", "value": 182, "children": []}, {"id": "98.10", "name": "98.10(77)", "value": 77, "children": []}]}, {"id": "99", "name": "99(3)", "value": 3, "children": [{"id": "99.99", "name": "99.99(2)", "value": 2, "children": []}]}]}
+    document.getElementById('sunburst').appendChild(Sunburst(data, {
+  value: d => d.value, // size of each node (file); null for internal nodes (folders)
+  label: d => d.name, // display name for each cell
+  title: (d, n) => `${n.ancestors().reverse().map(d => d.data.name).join(".")}\n${n.value.toLocaleString("en")}`, // hover text
+  width: 700,
+  height: 700
+}))
+
+</script>
 
 </body>
 </html>
