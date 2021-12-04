@@ -25,7 +25,7 @@ if __name__ == '__main__':
                 img = Image.open(file)
                 img.verify()
                 width, height = img.size
-                if width == 800 and height == 800:
+                if width == 256 and height == 256:
                     results_keep.append(result)
             except:
                 pass

@@ -1,0 +1,1 @@
+python decode.py --data-folder encoded/test  --checkpoint models/2021-10-14-1406/model_9.pt --hidden-size 512 --k 4096
