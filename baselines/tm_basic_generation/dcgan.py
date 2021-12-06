@@ -1,5 +1,5 @@
 from __future__ import print_function, division
-
+import os
 from tensorflow.keras.layers import Input, Dense, Reshape, Flatten, Dropout
 from tensorflow.keras.layers import BatchNormalization, Activation, ZeroPadding2D
 from tensorflow.keras.layers import LeakyReLU
@@ -103,7 +103,7 @@ class DCGAN:
 
         return Model(img, validity)
 
-    def train(self, epochs, train_generator, valid_generator, test_generator, batch_size=128, save_interval=50):
+    def train(self, epochs, train_generator, valid_generator, test_generator, batch_size=128, save_interval=2):
 
         # Adversarial ground truths
         valid = np.ones((batch_size, 1))
@@ -141,16 +141,16 @@ class DCGAN:
                 gen_imgs = self.generator.predict(noise)
 
                 # Train the discriminator (real classified as ones and generated as zeros)
-                d_loss_real = self.discriminator.predict_on_batch(batch, valid)
-                d_loss_fake = self.discriminator.predict_on_batch(gen_imgs, fake)
+                d_loss_real = self.discriminator.test_on_batch(batch, valid)
+                d_loss_fake = self.discriminator.test_on_batch(gen_imgs, fake)
                 d_loss = 0.5 * np.add(d_loss_real, d_loss_fake)
 
                 # ---------------------
-                #  Train Generator
+                #  Valid Generator
                 # ---------------------
 
                 # Train the generator (wants discriminator to mistake images as real)
-                g_loss = self.combined.predict_on_batch(noise, valid)
+                g_loss = self.combined.test_on_batch(noise, valid)
 
                 # Plot the progress
                 print("%d [D loss: %f, acc.: %.2f%%] [G loss: %f]" % (epoch, d_loss[0], 100 * d_loss[1], g_loss))
@@ -173,5 +173,6 @@ class DCGAN:
                 axs[i, j].imshow(gen_imgs[cnt, :, :, 0], cmap='gray')
                 axs[i, j].axis('off')
                 cnt += 1
-        fig.savefig("images/mnist_%d.png" % epoch)
+        os.makedirs('output', exist_ok=True)
+        fig.savefig("output/euipo_%d.png" % epoch)
         plt.close()
