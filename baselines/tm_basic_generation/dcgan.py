@@ -140,7 +140,7 @@ class DCGAN:
                 noise = np.random.normal(0, 1, (batch_size, self.latent_dim))
                 gen_imgs = self.generator.predict(noise)
 
-                # Train the discriminator (real classified as ones and generated as zeros)
+                # Validate the discriminator (real classified as ones and generated as zeros)
                 d_loss_real = self.discriminator.test_on_batch(batch, valid)
                 d_loss_fake = self.discriminator.test_on_batch(gen_imgs, fake)
                 d_loss = 0.5 * np.add(d_loss_real, d_loss_fake)
@@ -149,7 +149,7 @@ class DCGAN:
                 #  Valid Generator
                 # ---------------------
 
-                # Train the generator (wants discriminator to mistake images as real)
+                # Validate the generator (wants discriminator to mistake images as real)
                 g_loss = self.combined.test_on_batch(noise, valid)
 
                 # Plot the progress
@@ -170,7 +170,7 @@ class DCGAN:
         cnt = 0
         for i in range(r):
             for j in range(c):
-                axs[i, j].imshow(gen_imgs[cnt, :, :, 0], cmap='gray')
+                axs[i, j].imshow(gen_imgs[cnt, :, :, 0])
                 axs[i, j].axis('off')
                 cnt += 1
         os.makedirs('output', exist_ok=True)
