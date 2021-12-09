@@ -2,12 +2,15 @@
 
 ## Introduction
  
-## Dataset
+## Dataset 🗂️
  
 
 
-## Citing
+## Citing 📣
 If you get inspiration from this work, please, cite it: TBA
 ```
 TBA
 ```
+
+## Contact 📧
+For additional details contact Asier Gutiérrez-Fandiño <asier.gutierrez@bsc.es>.
