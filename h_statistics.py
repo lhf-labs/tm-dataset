@@ -5,7 +5,8 @@ from itertools import chain
 from collections import defaultdict
 
 plt.rcParams.update({
-    "font.family": "CMU Serif"
+    "font.family": "CMU Serif",
+    "font.size": 10
 })
 
 
