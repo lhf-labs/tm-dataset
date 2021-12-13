@@ -13,7 +13,14 @@ To build your own dataset, please, read the [instructions](https://github.com/lh
 ## Citing 📣
 If you get inspiration from this work, please, cite it: TBA
 ```
-TBA
+@misc{gutierrezfandino2021L3D,
+      title={The Large Labelled Logo Dataset (L3D): A Multipurpose and Hand-Labelled Continuously Growing Dataset}, 
+      author={Asier Gutiérrez-Fandiño and David Pérez-Fernández and Jordi Armengol-Estapé},
+      year={2021},
+      eprint={2112.05404},
+      archivePrefix={arXiv},
+      primaryClass={cs.CV}
+}
 ```
 
 ## Contact 📧
