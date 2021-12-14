@@ -11,7 +11,7 @@ You can download the dataset either using our scripts or downloading them from [
 To build your own dataset, please, read the [instructions](https://github.com/lhf-labs/tm-dataset/blob/main/instructions.md).
 
 ## Citing 📣
-If you get inspiration from this work, please, cite it: TBA
+If you get inspiration from this work, please, cite it: https://arxiv.org/abs/2112.05404
 ```
 @misc{gutierrezfandino2021L3D,
       title={The Large Labelled Logo Dataset (L3D): A Multipurpose and Hand-Labelled Continuously Growing Dataset}, 
